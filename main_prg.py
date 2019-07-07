@@ -22,6 +22,6 @@ def creat_my_series(my_data):
     return my_series_data
 
 # 设置数据返回每月的最后一天数值
-data_510050=creat_my_series(load_510050_data()).resample('M').first() # resample('M',how='first')已经不建议使用，应该使用当前方法
+data_510050=creat_my_series(load_510050_data()).resample('M').first() # resample('M',how='first') # 已经不建议使用，应该使用当前方法
 
 print((data_510050-data_510050.shift(1))/data_510050.shift(1)) #打印出过去三年每个月对比前一个月的涨跌情况
