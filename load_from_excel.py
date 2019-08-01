@@ -4,6 +4,7 @@ import pymysql
 from sqlalchemy import create_engine
 import configparser
 import logging
+import numpy as np
 
 # 记录日志的需求
 logging.basicConfig(filename='app.log', level=logging.DEBUG,
@@ -24,7 +25,7 @@ db_name = myConfig.get('db', 'db_name')
 
 # 连接到本地的mysql数据库
 mysqlConn = create_engine(
-    "mysql+pymysql://" + db_user + ":" + db_pass + "@" + db_host + ":" + db_port + "/liangwh?charset=utf8")
+    "mysql+pymysql://" + db_user + ":" + db_pass + "@" + db_host + ":" + db_port + "/"+db_name+"?charset=utf8")
 
 
 
@@ -36,13 +37,21 @@ def load_from_excel(str_file_name, table_name):
     startTime = datetime.datetime.now()
     logging.info('导入并保存资料启动时间：' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     # 从Excel文件中导入客户资料，其中数值类型的字段在导入前请使用excel软件进行转换为数值型
-    data_from_excel = pandas.read_excel(str_file_name,
-                                   dtype=str
+    df_from_excel = pandas.read_excel(str_file_name,
+                                   dtype={'时间':pandas.datetime}
                                    )
-    print(data_from_excel.dtypes)
+    #print(df_from_excel.dtypes)
+
+    series_increase_range = pandas.Series(list(df_from_excel['收盘']), index=pandas.to_datetime(df_from_excel['时间']))
+    series_count_result = round((series_increase_range - series_increase_range.shift(1)) / series_increase_range.shift(1), 4)
+
+    df_from_excel['涨幅'] = series_count_result.values
+
+    #print(df_from_excel.dtypes)
+    print(df_from_excel[df_from_excel['涨幅']<-0.02])
 
     # 把从excel导入的数据保存到mysql中
-    data_from_excel.to_sql(table_name, mysqlConn, schema=db_name, if_exists="append", index=False, index_label=False)
+    #df_from_excel.to_sql(table_name, mysqlConn, schema=db_name, if_exists="append", index=False, index_label=False)
 
     logging.info('导入并保存资料结束时间：' + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     logging.info('－－－－－－－－－－－－－－－－－－－－－－－－－－－')
@@ -52,19 +61,16 @@ def load_from_excel(str_file_name, table_name):
 
 # 读取mysql上的数据
 def read_from_mysql(table_name):
+
     # 查询语句，选出employee表中的所有数据
     sql = '''select * from %s''' % (table_name)
+
     # read_sql_query的两个参数: sql语句， 数据库连接
     df_from_sql = pandas.read_sql_query(sql, mysqlConn)
 
-    df_increase_range = pandas.Series(list(df_from_sql['收盘']), index=pandas.to_datetime(df_from_sql['时间']))
-    df_count_result=(df_increase_range - df_increase_range.shift(1)) / df_increase_range.shift(1)
-
-
-
-    # 输出employee表的查询结果
-    #print(df_from_sql)
+    # 输出结果
+    print(df_from_sql)
 
 # 导入对应统计年和月份的客户数据
-#load_from_excel(r"601138.xlsx",'601138')
+#load_from_excel(r"601138.xlsx",'s601138')
 read_from_mysql('s601138')
